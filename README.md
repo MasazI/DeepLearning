@@ -7,6 +7,8 @@ a python implementation of deeplearning using Theano
 - MLP
 - CNN specificaly LeNet
 - CNN
+- AutoEncoder
+- Denoising AutoEncoder
 
 
 ---
