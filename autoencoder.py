@@ -59,6 +59,10 @@ class dA(object):
         # 最適化パラメータ
         self.params = [self.W, self.b, self.b_prime]
 
+    def get_corrupted_input(self, input, corruption_level):
+        """ ノイズ画像の生成(binomial) """
+        return self.theano_rng.binomial(size=input.shape, n=1, p=1-corruption_level, dtype=theano.config.floatX)*input
+
     def get_hidden_values(self, input):
         """ 入力層の値を隠れ層の値に変換  """
         return T.nnet.sigmoid(T.dot(input, self.W) + self.b)
@@ -69,16 +73,20 @@ class dA(object):
 
     def get_cost_updates(self, corruption_level, learning_rate):
         """ コストを計算してパラメータをアップデート """
-        # noiseの負荷
-        #tilde_x = self.get_corrupted_input(self.x, corruption_level)
+        # xにnoiseを付加する(denoise)
+        tilde_x = self.get_corrupted_input(self.x, corruption_level)
 
         # 入力を変換
-        y = self.get_hidden_values(self.x)
+        # denoise
+        y = self.get_hidden_values(tilde_x)
+        # normal
+        # y = self.get_hidden_values(self.x)
 
         # 変換した値を逆変換で元に戻して再構成
         z = self.get_reconstructed_input(y)
 
         # 元の入力と再構成した入力との交差エントロピー
+        # xが0か1の2値を取る場合のエントロピーのはずだが、画像x
         L = - T.sum(self.x * T.log(z) + (1 - self.x) * T.log(1 - z), axis=1)
         cost = T.mean(L)
 
@@ -92,7 +100,7 @@ class dA(object):
 
 def test_autoencoder():
     learning_rate = 0.1
-    training_epochs = 15
+    training_epochs = 30
     batch_size = 20
 
     datasets = load_data('data/mnist.pkl.gz')
@@ -115,14 +123,14 @@ def test_autoencoder():
     da = dA(numpy_rng=rng, theano_rng=theano_rng, input=x, n_visible=28*28, n_hidden=500)
 
     # コスト関数と更新式のシンボル
-    cost, updates = da.get_cost_updates(corruption_level=0., learning_rate=learning_rate)
+    cost, updates = da.get_cost_updates(corruption_level=0.0, learning_rate=learning_rate)
 
     # trainingの関数
     train_da = theano.function([index], cost, updates=updates, givens={
             x : train_set_x[index*batch_size : (index+1)*batch_size]
         })
 
-    fp = open("ae_cost.txt", "w")
+    fp = open("log/ae_cost.txt", "w")
 
     # training
     start_time = time.clock()
@@ -131,6 +139,7 @@ def test_autoencoder():
         for batch_index in xrange(n_train_batches):
             c.append(train_da(batch_index))
         print 'Training epoch %d, cost ' % epoch, np.mean(c)
+        fp.write('%d\t%f\n' % (epoch, np.mean(c)))
 
     end_time = time.clock()
 
@@ -144,7 +153,7 @@ def test_autoencoder():
     X=da.W.get_value(borrow=True).T,
     img_shape=(28, 28), tile_shape=(10, 10),
     tile_spacing=(1, 1)))
-    image.save('log/ae_filters_corruption_30.png')
+    image.save('log/dae_filters_corruption_00.png')
 
 if __name__ == "__main__":
     test_autoencoder()
