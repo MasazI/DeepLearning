@@ -20,7 +20,7 @@ class ImageNoise(object):
         return self.theano_rng.binomial(size=input.shape, n=1, p=1-corruption_level, dtype=theano.config.floatX)*input
 
 if __name__ == '__main__':
-    img = Image.open(open('../image/cat.jpg'))
+    img = Image.open(open('image/cat.jpg'))
     width = img.size[0]
     height = img.size[1]
     img_gray = ImageOps.grayscale(img)
@@ -56,4 +56,8 @@ if __name__ == '__main__':
     pylab.subplot(1, 2, 2)
     pylab.imshow(corrupted_image[0,0,:,:], cmap="Greys_r")
     pylab.gray
+
+    pylab.savefig('log/denoise_sample.png')
     pylab.show() 
+
+

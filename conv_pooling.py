@@ -42,7 +42,7 @@ output = T.nnet.sigmoid(conv_out + b.dimshuffle('x',0,'x','x'))
 f = theano.function([input], output)
 
 # toy code
-img = Image.open(open('../image/cat.jpg'))
+img = Image.open(open('image/cat.jpg'))
 width = img.size[0]
 height = img.size[1]
 img = np.asarray(img, dtype='float64') / 256.
