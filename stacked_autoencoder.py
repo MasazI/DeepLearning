@@ -118,17 +118,23 @@ class SdA(object):
         n_valid_batches = valid_set_x.get_value(borrow=True).shape[0]/batch_size
         n_test_batches = test_set_x.get_value(borrow=True).shape[0]/batch_size
 
+
         index = T.lscalar('index')
         
         # logiticlayerの微分
         gparams = T.grad(self.finetune_cost, self.params)
+
+
         # ネットワークのパラメータ更新
         updates = [(param, param - gparam * learning_rate) for param, gparam in zip(self.params, gparams)]
 
+
         train_model = theano.function(inputs=[index], outputs=self.finetune_cost, updates=updates, givens={self.x: train_set_x[index*batch_size : (index+1)*batch_size], self.y: train_set_y[index*batch_size : (index+1)*batch_size]}, name='train')
+
 
         # minibatch index i testのエラースコアfunction
         test_score_i = theano.function(inputs=[index], outputs=self.errors, givens={self.x: test_set_x[index*batch_size : (index+1)*batch_size], self.y: test_set_y[index*batch_size : (index+1)*batch_size]}, name='test')
+
 
         # minibatch index i validateのエラースコアfunction
         valid_score_i = theano.function(inputs=[index], outputs=self.errors, givens={self.x: valid_set_x[index*batch_size : (index+1)*batch_size], self.y: valid_set_y[index*batch_size : (index+1)*batch_size]}, name='validate')
@@ -138,6 +144,8 @@ class SdA(object):
 
         def test_score():
             return [test_score_i(i) for i in xrange(n_test_batches)]
+    
+        return train_model, valid_score, test_score
 
 def optimize_stacked_autoencoder(n_ins=28*28, hidden_layers_sizes=[1000, 1000, 1000], n_outs=10, corruption_levels=[0.1, 0.2, 0.3], pretraining_epochs=30, pretrain_lr=0.001, training_epochs=1000, finetune_lr=0.1, dataset='data/mnist.pkl.gz', batch_size=1):
     """ 各事前学習のエポック数、事前学習の学習率、finetuneのエポック数、finetuneの学習率、学習データああセット、ミニバッチサイズ"""
@@ -172,13 +180,21 @@ def optimize_stacked_autoencoder(n_ins=28*28, hidden_layers_sizes=[1000, 1000, 1
             c = []
             for batch_index in xrange(n_train_batches):
                 c.append(pretraining_functions[i](index=batch_index, corruption=corruption_levels[i], lr=pretrain_lr))
-                print "Pre-training layer %i, epoch %d, batch %i/%i cost %f" % (i, epoch, batch_index, n_train_batches, np.mean(c))
+            print "Pre-training layer %i, epoch %d, cost %f" % (i, epoch, np.mean(c))
     end_time = timeit.default_timer()
     training_time = end_time - start_time
     print "The pretraining code for file %s ran for %.2fm" % (os.path.split(__file__)[1], training_time / 60.0)
 
     # AutoEncodeされたネットワークをfinetuningする関数を取得
     print "get the finetuning functions ..."
+
+    if datasets is None:
+        print 'dataset is None'
+    if batch_size is None:
+        print 'batch_size is None'
+    if finetune_lr is None:
+        print 'finetune_lr is None'
+
     train_model, validate_model, test_model = sda.build_finetune_functions(datasets=datasets, batch_size=batch_size, learning_rate=finetune_lr)
 
     print "fine-tuning the model ..."
@@ -198,7 +214,7 @@ def optimize_stacked_autoencoder(n_ins=28*28, hidden_layers_sizes=[1000, 1000, 1
     fp1 = open('log/SdA_validation_error.txt', 'w')
     fp2 = open('log/SdA_test_error.txt', 'w')
 
-    while(epoch < n_epochs) and (not done_looping):
+    while(epoch < training_epochs) and (not done_looping):
         epoch = epoch + 1
         for minibatch_index in xrange(n_train_batches):
             minibatch_avg_cost = train_model(minibatch_index)
@@ -206,7 +222,7 @@ def optimize_stacked_autoencoder(n_ins=28*28, hidden_layers_sizes=[1000, 1000, 1
 
             if (iter + 1) % validation_frequency == 0:
                 ## validationのindexをvalidationのエラー率を計算するfunctionに渡し、配列としてかえす
-                validation_losses = [validate_model(i) for i in xrange(n_valid_batches)]
+                validation_losses = validate_model()
                 # 平均してscoreにする
                 this_validation_loss = np.mean(validation_losses)
                 print('epoch %i, minibatch %i/%i, validation error %f ' % (epoch, minibatch_index+1, n_train_batches, this_validation_loss*100.))
@@ -219,7 +235,7 @@ def optimize_stacked_autoencoder(n_ins=28*28, hidden_layers_sizes=[1000, 1000, 1
                     best_validation_loss = this_validation_loss
                     best_iter = iter
                     ## testのindex をtestのエラー率を計算するfunctionに渡し、配列として渡す
-                    test_losses = [test_model(i) for i in xrange(n_test_batches)]
+                    test_losses = test_model()
                     
                     ## 平均してscoreにする
                     test_score = np.mean(test_losses)
