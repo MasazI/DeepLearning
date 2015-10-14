@@ -74,7 +74,8 @@ class SdA(object):
         self.finetune_cost = self.logLayer.negative_log_likelihood(self.y)
 
         # LogisticRegression層のエラーを使う
-        self.erros = self.logLayer.errors(self.y)
+        self.errors = self.logLayer.errors(self.y)
+
     def pretraining_functions(self, train_set_x, batch_size):
         """ 各レイヤーのAutoEncoderによる学習 """
         # minibatchのindex
@@ -130,7 +131,7 @@ class SdA(object):
         test_score_i = theano.function(inputs=[index], outputs=self.errors, givens={self.x: test_set_x[index*batch_size : (index+1)*batch_size], self.y: test_set_y[index*batch_size : (index+1)*batch_size]}, name='test')
 
         # minibatch index i validateのエラースコアfunction
-        valid_score_i = theano.function(inputs=[index], outputs=self.erros, givens={self.x: valid_set_x[index*batch_size : (index+1)*batch_size], self.y: valid_set_y[index*batch_size : (index+1)*batch_size]}, name='validate')
+        valid_score_i = theano.function(inputs=[index], outputs=self.errors, givens={self.x: valid_set_x[index*batch_size : (index+1)*batch_size], self.y: valid_set_y[index*batch_size : (index+1)*batch_size]}, name='validate')
 
         def valid_score():
             return [valid_score_i(i) for i in xrange(n_valid_batches)]
@@ -172,7 +173,7 @@ def optimize_stacked_autoencoder(n_ins=28*28, hidden_layers_sizes=[1000, 1000, 1
             for batch_index in xrange(n_train_batches):
                 c.append(pretraining_functions[i](index=batch_index, corruption=corruption_levels[i], lr=pretrain_lr))
                 print "Pre-training layer %i, epoch %d, batch %i/%i cost %f" % (i, epoch, batch_index, n_train_batches, np.mean(c))
-    end_time = timeit.default_time()
+    end_time = timeit.default_timer()
     training_time = end_time - start_time
     print "The pretraining code for file %s ran for %.2fm" % (os.path.split(__file__)[1], training_time / 60.0)
 
