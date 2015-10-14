@@ -9,7 +9,7 @@ a python implementation of deeplearning using Theano
 - CNN
 - AutoEncoder
 - Denoising AutoEncoder
-
+- Stacked Denosing AutoEncoder
 
 ---
 
