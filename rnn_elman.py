@@ -18,49 +18,53 @@ import theano.tensor as T
 import cPickle
 import pdb
 
+import rnn
+import rnn_tools
+
 # python の最大再帰数の設定（Cスタックがオーバーフローしてクラッシュすることを防ぐ）
 sys.setrecursionlimit(1500)
 
-# データのprefixを作成しておく
-PREFIX = os.getenv('ATISDATA', os.path.join(os.path.split(os.path.abspath(os.path.dirname(__file__)))[0], 'ML/data'))
+class RNNSLU(object):
+    """ elman rnn """
+    def __init__(self, nh, nc, ne, de, cs):
+        """ nh: 隠れ層の次元
+            nc: 分類クラス数
+            ne: ワード埋め込み空間のボキャブラリー数
+            de: ワード埋め込み空間の次元数
+            cs: コンテキストウィンドウのサイズ
+        """
 
-# atisデータのロード
-def atis_all():
-    filename = os.path.join(PREFIX, 'atis.pkl')
-    train_set, test_set, dicts = cPickle.load(open(filename))
-    return train_set, test_set, dicts
+        ## 最適化するモデルのパラメータを定義する
+        
+        # ワード埋め込み空間
+        # ボキャブラリーの個数*埋め込み空間の次元数 ワード埋め込み空間(+1はt+1に相当する行をパディングで追加)
+        self.emb = theano.shared(name='embeddings', value=0.2*np.random.uniform(-1.0,1.0,(ne+1, de)).astype(theano.config.floatX))
+        
+        # 入力ベクトルから隠れ層の重み
+        # (ワード埋め込み次元数*コンテキストウィンドウサイズ) * 隠れ層の次元 の行列
+        self.wx = theano.shared(name='wx', value=0.2*np.random.uniform(-1.0,1.0,(de*cs, nh)).astype(theano.config.floatX))
 
-def load_data():
-    # atisデータ
-    data = atis_all()
-    train, test, dic = data
-    
-    # 辞書データを展開する配列
-    w2ne, w2la = {}, {}
+        # 隠れ層から隠れ層への重み
+        self.wh = theano.shared(name='wx', value=0.2*np.random.uniform(-1.0,1.0,(nh, nh)).astype(theano.config.floatX))
 
-    # wordからindex、テーブルからindex, labelからindex
-    w2idx, ne2idx, label2idx = dic['words2idx'], dic['tables2idx'], dic['labels2idx']
+        # 隠れ層から出力層への重み
+        self.w = theano.shared(name='wx', value=0.2*np.random.uniform(-1.0,1.0,(nh, nc)).astype(theano.config.floatX))
 
-    # 逆の辞書も作っておく
-    idx2w = dict((v,k) for k,v in w2idx.iteritems())
-    idx2ne = dict((v,k) for k,v in ne2idx.iteritems())
-    idx2la = dict((v,k) for k,v in label2idx.iteritems())
+        # 隠れ層のbias
+        self.bh = theano.shared(name='bh', value=np.zeros(nh, dtype=theano.config.floatX))
 
-    # データをカラムごとに保持
-    test_x, test_ne, test_label = test
-    train_x, train_ne, train_label = train
+        # 出力層のbias
+        self.b = theano.shared(name='b', value=np.zeros(nc, dtype=theano.config.floatX))
 
-    # 見やすく表示するためのwidth
-    wlength = 35
+        # はじめの隠れ層へのbias
+        self.h0 = theano.shared(name='h0', value=np.zeros(nh, dtype=theano.config.floatX))
 
-    for e in ['train', 'test']:
-        for sw, se, sl in zip(eval(e+'_x'), eval(e+'_ne'), eval(e+'_label')):
-            print 'WORD'.rjust(wlength), 'LABEL'.rjust(wlength)
-            for wx, la in zip(sw, sl):
-                print idx2w[wx].rjust(wlength), idx2la[la].rjust(wlength)
-            print '\n' + '**'*30 + '\n'
-            pdb.set_trace()
+        # 微分用にパラメータを配列に入れておく
+        self.params = [self.emb, self.wx, self.wh, self.w, self.bh, self.b, self.h0]
 
 
 if __name__ == '__main__':
-    load_data()
+    RNNSLU(100, 10, 1000, 50, 5)
+
+    
+    
