@@ -62,6 +62,41 @@ class RNNSLU(object):
         # 微分用にパラメータを配列に入れておく
         self.params = [self.emb, self.wx, self.wh, self.w, self.bh, self.b, self.h0]
 
+        # 入力の行列シンボル コンテキストウィンドウを行にもつセンテンスの行列
+        idxs = T.imatrix()
+
+        # 入力データを入力データを埋め込み空間に写像した行列
+        # 行: idxs.shape[0]は入力データの行数、列：(埋め込み空間の次元数*コンテキストウィンドウのサイズ　)
+        x = self.emb[idxs].reshape((idxs.shape[0], de*cs))
+
+        # ラベルデータ
+        y = T.iscalar('y')
+        y_sentence = T.ivector('y_sentence')
+
+        # 伝播処理
+        def recurrence(x_t, h_tm1):
+            """
+                x_t:: x of t
+                h_tm1:: h of t-1
+            """
+            # 入力層と前の隠れ層からのデータ
+            h_t = T.nnet.sigmoid(T.dot(x_t, self.wx) + T.dot(h_tm1, self.wh) + self.bh)
+            # 隠れ層から出力するデータ
+            s_t = T.nnet.softmax(T.dot(h_t, self.w) + self.b)
+            return [h_t, s_t] # h_t(h of t), s_t(s of t)
+
+        # scan.Iterator(fnを入力の各要素に対して適用する) outputs_infoはloop処理の初期値であり最初のrecurrenceへの引数。
+        # x_t(x of t)に[self.h0, None]の配列が渡る
+        # n_stepsは繰り返しの回数であり、xのshape[0]は入力データのコンテキストウィンドウの数と一致する
+        # i.e. 入力データのコンテキストウィンドウの数だけ繰り返し処理する。各行には、コンテキストウィンドウのデータを埋め込み空間に写像したベクトルが入っているため。
+        # ここではコンテキストウィンドウごとに、埋め込み空間に写像したベクトルに対して関数fnを適用するということになる
+        # recurrenceには2つの引数がある。scan.Iterationの場合、第２引数は前回の結果をそのまま引き継ぐので、h_tm1にはh_tが入る。s_tは出力されるデータなので再利用しない。
+        # _ にはscan.OrderedUpdatesが得られる。
+        # _ は受け取らないとエラーになる。error: Outputs must be theano Variable or Out instances. Received OrderedUpdates()
+        # _ は、繰り返し処理の順序有りアップデート処理をもっており、途中でストップする際などに用いることができる。_に明示的に条件を指定シない場合はn_stepsで止まるまで処理を行う
+        [h, s], _ = theano.scan(fn=recurrence, sequences=x, outputs_info=[self.h0, None], n_steps=x.shape[0])
+
+        print _ 
 
 if __name__ == '__main__':
     RNNSLU(100, 10, 1000, 50, 5)
