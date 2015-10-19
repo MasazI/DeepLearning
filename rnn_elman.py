@@ -15,12 +15,6 @@ import numpy as np
 import theano
 import theano.tensor as T
 
-import cPickle
-import pdb
-
-import rnn
-import rnn_tools
-
 # python の最大再帰数の設定（Cスタックがオーバーフローしてクラッシュすることを防ぐ）
 sys.setrecursionlimit(1500)
 
@@ -96,10 +90,80 @@ class RNNSLU(object):
         # _ は、繰り返し処理の順序有りアップデート処理をもっており、途中でストップする際などに用いることができる。_に明示的に条件を指定シない場合はn_stepsで止まるまで処理を行う
         [h, s], _ = theano.scan(fn=recurrence, sequences=x, outputs_info=[self.h0, None], n_steps=x.shape[0])
 
-        print _ 
+        # OrederedUpdates - 順序を保持したupdatesかな
+        print _
 
+        # subtensol
+        print h.eval
+
+        # for         
+        print s.eval
+
+        # 時刻tにおいてsentence xが与えられた時の各ラベルの確率配列
+        p_y_given_x_sentence = s[:, 0, :]
+        # predictしたラベル
+        y_pred = T.argmax(p_y_given_x_sentence, axis=1)
+
+        # 学習係数
+        lr = T.scalar('lr') 
+
+        # negative log likelihood
+        # y_sentenceをx_shape[0]の次元に合わせたベクトルにして、p_y_given_x_sentenceから正解ラベルの確率のみスライス
+        sentence_nll = -T.mean(T.log(p_y_given_x_sentence)[T.arange(x.shape[0]), y_sentence])
+
+        # lossをパラメータで微分
+        sentence_gradients = T.grad(sentence_nll, self.params)
+
+        # 更新式 tupleで初期化すると順序が保証されるので、paramsの順番で各パラメータの更新式が入る
+        # これ配列でもいいような気がする、後で実験してみよう
+        sentence_updates = OrderedDict((p, p - lr*g) for p, g in zip(self.params, sentence_gradients)) 
+
+        # 識別器関数:: 入力データからラベルを出力する識別
+        self.classify = theano.function(inputs=[idxs], outputs=y_pred)
+
+        # 学習関数:: 入力はデータと正解ラベル、学習率、outputsにコスト関数、updatesにパラメータの更新式
+        self.sentence_train = theano.function(inputs=[idxs, y_sentence, lr], outputs=sentence_nll, updates=sentence_updates)
+
+        # 正規化(normalize)関数:: emb行列の正規化
+        self.normalize = theano.function(inputs=[], updates={self.emb: self.emb / T.sqrt((self.emb**2).sum(axis=1)).dimshuffle(0, 'x')})
+    
+    def train(self, x, y, window_size, leraning_rate):
+        """ 
+            学習
+            x:: index array of sentence センテンスのindex配列
+            y:: labels indexごとのラベル配列
+            learning_rate:: 学習率
+        """
+        # contextwindow
+        cwords = contextwin(x, window_size)
+        # contextwindowとward indexのmap
+        words = map(lambda x: np.asarray(x).astype('int32'), cwords)
+        # label
+        labels = y
+        self.sentence_train(wards, labels, laerning_rate)
+        self.normalize()
+
+    def save(self, folder):
+        """
+            パラメータの保存
+            folder:: 保存先フォルダー 
+        """
+        for param in self.params:
+            np.save(os.path.join(folder, param.name + '.npy'), param.get_value())
+
+    def load(self, folder):
+        """
+            パラメータのロード
+            folder:: ロード先フォルダー
+        """
+        for param in self.params:
+            param.set_value(np.load(os.path.join(folder, param.name + '.npy')))
+
+def rnnslu_init_test():
+     RNNSLU(100, 10, 1000, 50, 5)
+    
 if __name__ == '__main__':
-    RNNSLU(100, 10, 1000, 50, 5)
-
+    """ run test  """
+    rnnslu_init_test()
     
     
