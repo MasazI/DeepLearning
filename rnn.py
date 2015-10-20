@@ -33,8 +33,8 @@ def main(param=None):
 
     print param
 
-    log_folder_name = './data'
-    model_folder_name = './model'
+    log_folder_name = './log'
+    model_folder_name = './model/rnn'
     log_folder = os.path.join(os.path.dirname(__file__), log_folder_name)
     if not os.path.exists(log_folder):
         os.mkdir(log_folder)
@@ -147,7 +147,7 @@ def main(param=None):
             param['clr'] *= 0.5
             rnn = best_rnn
 
-        if param[(clr)] < 1e-5:
+        if param['clr'] < 1e-5:
             break
             
     print('BEST REULST: epoch', param['be'], 'valid F1', param['vf1'], 'best test F1', param['tf1'],'with the nodel', folder)
