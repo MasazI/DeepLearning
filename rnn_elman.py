@@ -41,10 +41,10 @@ class RNNSLU(object):
         self.wx = theano.shared(name='wx', value=0.2*np.random.uniform(-1.0,1.0,(de*cs, nh)).astype(theano.config.floatX))
 
         # 隠れ層から隠れ層への重み
-        self.wh = theano.shared(name='wx', value=0.2*np.random.uniform(-1.0,1.0,(nh, nh)).astype(theano.config.floatX))
+        self.wh = theano.shared(name='wh', value=0.2*np.random.uniform(-1.0,1.0,(nh, nh)).astype(theano.config.floatX))
 
         # 隠れ層から出力層への重み
-        self.w = theano.shared(name='wx', value=0.2*np.random.uniform(-1.0,1.0,(nh, nc)).astype(theano.config.floatX))
+        self.w = theano.shared(name='w', value=0.2*np.random.uniform(-1.0,1.0,(nh, nc)).astype(theano.config.floatX))
 
         # 隠れ層のbias
         self.bh = theano.shared(name='bh', value=np.zeros(nh, dtype=theano.config.floatX))
@@ -62,11 +62,12 @@ class RNNSLU(object):
         idxs = T.imatrix()
 
         # 入力データを入力データを埋め込み空間に写像した行列
-        # 行: idxs.shape[0]は入力データの行数、列：(埋め込み空間の次元数*コンテキストウィンドウのサイズ　)
+        # 行: idxs.shape[0]は入力データの行数(コンテキストウィンドウの数)、列：(埋め込み空間の次元数*コンテキストウィンドウのサイズ　)
         x = self.emb[idxs].reshape((idxs.shape[0], de*cs))
 
         # ラベルデータ
         y = T.iscalar('y')
+        # センテンスのラベルデータ
         y_sentence = T.ivector('y_sentence')
 
         # 伝播処理
@@ -76,8 +77,11 @@ class RNNSLU(object):
                 h_tm1:: h of t-1
             """
             # 入力層と前の隠れ層からのデータ
+            # x_tは時刻tの入力, wx は (入力データ次元 * hidden次元)  -> hidden次元
+            # h_tm1はhidden次元、w は hidden * hidden次元 -> hidden次元
             h_t = T.nnet.sigmoid(T.dot(x_t, self.wx) + T.dot(h_tm1, self.wh) + self.bh)
             # 隠れ層から出力するデータ
+            # h_t は hidden次元,  w = hidden * output -> output次元でsoftmaxをかけて各unitに割り当てられたクラスラベルの確率になる
             s_t = T.nnet.softmax(T.dot(h_t, self.w) + self.b)
             return [h_t, s_t] # h_t(h of t), s_t(s of t)
 
@@ -89,21 +93,17 @@ class RNNSLU(object):
         # recurrenceには2つの引数がある。scan.Iterationの場合、第２引数は前回の結果をそのまま引き継ぐので、h_tm1にはh_tが入る。s_tは出力されるデータなので再利用しない。
         # _ にはscan.OrderedUpdatesが得られる。
         # _ は受け取らないとエラーになる。error: Outputs must be theano Variable or Out instances. Received OrderedUpdates()
-        # _ は、繰り返し処理の順序有りアップデート処理をもっており、途中でストップする際などに用いることができる。_に明示的に条件を指定シない場合はn_stepsで止まるまで処理を行う
+        # _ は、繰り返し処理の順序有りアップデート処理をもっており、途中でストップする際などに用いることができる。_に明示的に条件を指定しない場合はn_stepsで止まるまで処理を行う
         [h, s], _ = theano.scan(fn=recurrence, sequences=x, outputs_info=[self.h0, None], n_steps=x.shape[0])
 
-        # OrederedUpdates - 順序を保持したupdatesかな
-        print _
-
-        # subtensol
-        print h.eval
-
-        # for         
-        print s.eval
-
-        # 時刻tにおいてsentence xが与えられた時の各ラベルの確率配列
+        # h, s はrecurrenceによって生成されるシンボル変数であり、繰り返し適用されたxとyの組である
+        # 1次元: step数 = コンテキストウィンドウの数
+        # 2次元: 各labelの確率の配列 
         p_y_given_x_sentence = s[:, 0, :]
+
         # predictしたラベル
+        # 確率が最大のクラスのインデックスを計算
+        # 出力は(n_step,)のベクトル
         y_pred = T.argmax(p_y_given_x_sentence, axis=1)
 
         # 学習係数
