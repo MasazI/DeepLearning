@@ -15,6 +15,8 @@ import numpy as np
 import theano
 import theano.tensor as T
 
+import rnn_tools
+
 # python の最大再帰数の設定（Cスタックがオーバーフローしてクラッシュすることを防ぐ）
 sys.setrecursionlimit(1500)
 
@@ -127,7 +129,7 @@ class RNNSLU(object):
         # 正規化(normalize)関数:: emb行列の正規化
         self.normalize = theano.function(inputs=[], updates={self.emb: self.emb / T.sqrt((self.emb**2).sum(axis=1)).dimshuffle(0, 'x')})
     
-    def train(self, x, y, window_size, leraning_rate):
+    def train(self, x, y, window_size, learning_rate):
         """ 
             学習
             x:: index array of sentence センテンスのindex配列
@@ -135,12 +137,12 @@ class RNNSLU(object):
             learning_rate:: 学習率
         """
         # contextwindow
-        cwords = contextwin(x, window_size)
+        cwords = rnn_tools.contextwin(x, window_size)
         # contextwindowとward indexのmap
         words = map(lambda x: np.asarray(x).astype('int32'), cwords)
         # label
         labels = y
-        self.sentence_train(wards, labels, laerning_rate)
+        self.sentence_train(words, labels, learning_rate)
         self.normalize()
 
     def save(self, folder):

@@ -2,6 +2,17 @@
 import random
 import numpy as np
 
+# utils functions
+def shuffle(lol, seed):
+    '''
+    lol :: list of list as input
+    seed :: seed the shuffling
+    shuffle inplace each list in the same order
+    '''
+    for l in lol:
+        random.seed(seed)
+        random.shuffle(l)
+
 def contextwin(l, win):
     """ win:: int windowsのサイズと一致する必要がある
         l:: array 単語のindexの入った配列

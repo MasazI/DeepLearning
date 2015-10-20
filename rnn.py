@@ -6,6 +6,7 @@ import sys
 import os
 import subprocess
 import random
+import copy
 
 import rnn_load
 import rnn_tools
@@ -107,8 +108,9 @@ def main(param=None):
             # xにはsentenceのwords、yにはそのラベルが入る. ここではsentenceごとに学習する
             rnn.train(x, y, param['win'], param['clr'])
 
-            print '[leaning] epoch %i >> %2.2f %' % (e, (i+1) * 100. / nsentences),
+            print '[leaning] epoch %i >> %2.2f %%' % (e, (i+1) * 100. / nsentences),
             print 'completed in %.2f (sec) <<\r' % (timeit.default_timer() - tic),
+            sys.stdout.flush()
 
             # testのボキャブラリーでループし、正解ラベルと分類結果のMapを作成
             predictions_test = [map(lambda x: idx2label[x], rnn.classify(np.asarray(rnn_tools.contextwin(x, param['win'])).astype('int32'))) for x in test_lex]
@@ -116,7 +118,7 @@ def main(param=None):
             # validationのボキャブラリーでループし、正解ラベルと分類結果のMapを作成
             predictions_valid = [map(lambda x: idx2label[x], rnn.classify(np.asarray(rnn_tools.contextwin(x, param['win'])).astype('int32'))) for x in valid_lex]
 
-            # evaluation usint colleval
+            # evaluation using colleval (NLPもっと勉強しないとここ理解難しい)
             res_test  = rnn_accuracy.conlleval(predictions_test, groundtruth_test, words_test, log_folder + '/current.test.txt')
             res_valid = rnn_accuracy.conlleval(predictions_valid, groundtruth_valid, words_valid, log_folder + '/current.valid.txt')
 
@@ -127,22 +129,21 @@ def main(param=None):
             best_rnn = copy.deepcopy(rnn)
             best_f1 = res_valid['f1']
 
-            if param['verbose']:
-                print('NEW BESET: epoch', e, 'valid F1', res_valid['f1'], 'best test F1', res_test['f1'])
+            print('NEW BEST: epoch', e, 'valid F1', res_valid['f1'], 'best test F1', res_test['f1'])
 
             param['vf1'], param['tf1'] = res_valid['f1'], res_test['f1']
             param['vp'], param['tp'] = res_valid['p'], res_test['p']
             param['vr'], param['tr'] = res_valid['r'], res_test['r']
             param['be'] = e
 
+            # logをbestに移す
             subprocess.call(['mv', log_folder + '/current.test.txt', log_folder + '/best.test.txt'])
             subprocess.call(['mv', log_folder + '/current.valid.txt', log_folder + '/best.valid.txt'])
         else:
-            if param['verbose']:
-                print ''
+            print ''
 
-        if param['decay'] and abs(param['be'] -param['ce']) >= 10:
-            # このステップごとに学習係数を小さくしていく
+        if param['decay'] and abs(param['be'] - param['ce']) >= 10:
+            # ステップごとに学習係数を小さくしていく
             param['clr'] *= 0.5
             rnn = best_rnn
 
