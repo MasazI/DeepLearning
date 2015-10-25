@@ -51,7 +51,7 @@ def main(param=None):
 
     # setを分割しておく
     train_lex, train_ne, train_y = train_set
-    
+ 
     # test_setからvalidationを生成
     val_endindex =  len(test_set[0])/2 #lex, ne, y全て同じ要素数
     test_endindex = len(test_set[0]) #lex, ne, y全て同じ要素数
