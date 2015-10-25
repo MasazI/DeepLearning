@@ -1,3 +1,4 @@
+# coding: utf-8
 import cPickle
 import gzip
 import os
@@ -5,6 +6,9 @@ import os
 import numpy
 import theano
 
+'''
+tools for imdb
+'''
 
 def prepare_data(seqs, labels, maxlen=None):
     """Create the matrices from the datasets.
