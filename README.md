@@ -10,6 +10,7 @@ a python implementation of deeplearning using Theano
 - AutoEncoder
 - Denoising AutoEncoder
 - Stacked Denosing AutoEncoder
+- RNN for words tagging
 
 ---
 
