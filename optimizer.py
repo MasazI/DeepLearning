@@ -14,9 +14,12 @@ def sgd(lr, tparams, grads, x, mask, y, cost):
     '''
         sgd(stochastic gradient descent)
         lr:: learning rate
-        tparams:: パラメータ
-        grads:: 勾配
-        
+        tparams:: モデルパラメータ
+        grads:: コストの勾配
+        x:: モデルへの入力データ
+        mask:: シーケンスmask
+        y:: ターゲット
+        cost:: cost関数
     '''
     # ミニバッチの勾配を含む共有変数
     gshared = [theano.shared(p.get_value()*0., name='%s_grad'%k) for k, p in tparams.iteritems()]
