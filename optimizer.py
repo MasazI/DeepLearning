@@ -18,7 +18,7 @@ def sgd(lr, tparams, grads, x, mask, y, cost):
         grads:: コストの勾配
         x:: モデルへの入力データ
         mask:: シーケンスmask
-        y:: ターゲット
+        y:: 教師データのラベル
         cost:: cost関数
     '''
     # ミニバッチの勾配を含む共有変数
@@ -40,3 +40,5 @@ def sgd(lr, tparams, grads, x, mask, y, cost):
 
     # 勾配計算の関数と重み更新の関数を返す
     return f_grad_shared, f_update
+
+
