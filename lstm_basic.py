@@ -6,6 +6,8 @@ from theano import config
 
 import reber_grammer
 
+import matplotlib.pyplot as plt
+
 dtype = config.floatX
 
 # logistic function for gate
@@ -41,19 +43,21 @@ def ortho_weights(dim_x, dim_y):
     u,s,v = np.linalg.svd(W)
     return W/s[0]
 
-def lstm_train():
+def lstm_train(n_in=7, n_hidden=10, n_i=10, n_c=10, n_o=10, n_f=10, n_y=7, nb_epochs=300, nb_train_examples=1000):
+    '''
     # numbeer of input layer dim as embedded reber grammar (7bit vector)
-    n_in = 7
+        n_in = 7
     
     # number of hidden layer unit for gate
-    n_hidden = 10
-    n_i = 10
-    n_c = 10
-    n_o = 10
-    n_f = 10
+        n_hidden = 10
+        n_i = 10
+        n_c = 10
+        n_o = 10
+        n_f = 10
     
     # number of output layer dim (7bit vector)
-    n_y = 7
+        n_y = 7
+    '''
     
     # 重みの初期化
     # 入力および出力ゲートは開くか閉じるを使う
@@ -94,7 +98,8 @@ def lstm_train():
     
     # recurrence
     [h_vals, _, y_vals], _ = theano.scan(fn=one_lstm_step, 
-                                        sequences = dict(input=v, taps=[0]), 
+                                        #sequences = dict(input=v, taps=[0]), 
+                                        sequences = v,
                                         outputs_info = [h0, c0, None],
                                         non_sequences = [W_xi, W_hi, W_ci, b_i, W_xf, W_hf, W_cf, b_f, W_xc, W_hc, b_c, W_xo, W_ho, W_co, b_o, W_hy, b_y])
     
@@ -119,15 +124,11 @@ def lstm_train():
         updates.append((param, param - gparam * learning_rate))
     
     # 教師データの生成
-    train_data = reber_grammer.get_n_embedded_examples(1000)
+    train_data = reber_grammer.get_n_embedded_examples(nb_train_examples)
     print 'train data length: ',len(train_data)    
-
 
     # lstm
     learn_rnn_fn = theano.function(inputs=[v, target], outputs=cost, updates=updates)
-    
-    nb_epochs = 250
-
     train_errors = np.ndarray(nb_epochs)
     def train_rnn(train_data):
         for x in range(nb_epochs):
@@ -147,9 +148,16 @@ def lstm_train():
 
     train_rnn(train_data)
 
+    plt.plot(np.arange(nb_epochs), train_errors, 'b-')
+    plt.xlabel('epochs')
+    plt.ylabel('error')
+    plt.ylim(0., 50)
+    plt.show()
+    print params
+
 if __name__ == '__main__':
     # orthogonal weights test
-    print ortho_weights(5,5)
+    # print ortho_weights(5,5)
 
     # basic lstm train
     lstm_train() 
