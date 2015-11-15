@@ -12,6 +12,7 @@ a python implementation of deeplearning using Theano
 - Stacked Denosing AutoEncoder
 - RNN for words tagging
 - LSTM(long short term memory)
+- Markov Random Fields
 
 ---
 
