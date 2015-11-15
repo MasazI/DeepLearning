@@ -13,6 +13,7 @@ a python implementation of deeplearning using Theano
 - RNN for words tagging
 - LSTM(long short term memory)
 - Markov Random Fields
+- deepdream from google (using Caffe)
 
 ---
 
