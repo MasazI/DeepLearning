@@ -72,10 +72,10 @@ def deepdream(net, base_img, iter_n=10, octave_n=4, octave_scale=1.4,
     # returning the resulting image
     return deprocess(net, src.data[0])
 
-if __name__ == '__main__':
-    model_path = '/Users/masai/caffe/models/bvlc_googlenet/'
+def normal_dream():
+    model_path = 'caffemodel/'
     net_fn = model_path + 'deploy.prototxt'
-    param_fn = model_path + 'bvlc_googlenet.caffemodel'
+    param_fn = model_path + 'deep_christmas_iter_5000.caffemodel'
 
     model = caffe.io.caffe_pb2.NetParameter()
     text_format.Merge(open(net_fn).read(), model)
@@ -83,8 +83,45 @@ if __name__ == '__main__':
     open('tmp.prototxt', 'w').write(str(model))
 
     net = caffe.Classifier('tmp.prototxt', param_fn, mean=np.float32([104.0, 116.0, 122.0]), channel_swap=(2,1,0))
+    #net = caffe.Classifier('tmp.prototxt', channel_swap=(2,1,0))
 
     img = np.float32(PIL.Image.open('image/deepdream_sample.jpg'))
-    result = deepdream(net, img)
+    result = deepdream(net, img, 100)
     PIL.Image.fromarray(np.uint8(result)).save('image/deepdream_result.jpg')
+
+def objective_guide(dst):
+    x = dst.data[0].copy()
+    y = guide_features
+    ch = x.shape[0]
+    x = x.reshape(ch,-1)
+    y = y.reshape(ch,-1)
+    A = x.T.dot(y) # compute the matrix of dot-products with guide features
+    dst.diff[0].reshape(ch,-1)[:] = y[:,A.argmax(1)] # select ones that match best
+ 
+
+guide = np.float32(PIL.Image.open('image/guide_christmas_5.jpg'))
+
+model_path = 'caffemodel/'
+net_fn = model_path + 'deploy_c.prototxt'
+param_fn = model_path + 'deep_christmas_fine_iter_1000.caffemodel'
+
+model = caffe.io.caffe_pb2.NetParameter()
+text_format.Merge(open(net_fn).read(), model)
+model.force_backward = True
+open('tmp.prototxt', 'w').write(str(model))
+
+net = caffe.Classifier('tmp.prototxt', param_fn, mean=np.float32([104.0, 116.0, 122.0]), channel_swap=(2,1,0))
+
+end = 'inception_3b/output'
+h, w = guide.shape[:2]
+src, dst = net.blobs['data'], net.blobs[end]
+src.reshape(1,3,h,w)
+src.data[0] = preprocess(net, guide)
+net.forward(end=end)
+guide_features = dst.data[0].copy()
+
+img = np.float32(PIL.Image.open('image/deepdream_sample.jpg'))
+result = deepdream(net, img, end=end, objective=objective_guide)
+PIL.Image.fromarray(np.uint8(result)).save('image/deepdream_guide_result.jpg')
+
 

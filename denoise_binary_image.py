@@ -58,8 +58,12 @@ class MRF(object):
         ノイズ除去した画像を生成
         '''
         # 確率伝播(Loopy Belief Propagation)
-        for p in self.belief_propagation():
-            pass
+        # yeildで戻してデバッグする場合には以下を利用する
+        # for p in self.belief_propagation():
+        #    pass
+    
+        # LBP
+        self.belief_propagation()
 
         denoised = np.copy(self.input)
         for r, c in self.nodes():
@@ -142,13 +146,15 @@ class MRF(object):
             message = self.prob(self.visible[n]['value'])
             message /= np.sum(message)
             self.hidden[n]['messages'][n] = message
-        yield
+        #デバッグ用にここでyieldをおいて、呼び出しもとに戻せる。
+        #yield
 
         for i in range(loop):
             diff = 0
             for n in self.nodes():
                 diff += self.send_message(n)
-                yield
+                #デバッグ用にここでyieldをおいて、呼び出しもとに戻せる。
+                #yield
             
             # 収束
             if diff < threshold:
@@ -239,6 +245,7 @@ def train(samplenum=5, dataset='data/mnist.pkl.gz'):
         if i >= samplenum:
             break
         img = train_set_x[index, :].reshape(28, 28)
+
         #print img
         img = (img >= 0.5).astype(int)
         #print img
@@ -248,8 +255,8 @@ def train(samplenum=5, dataset='data/mnist.pkl.gz'):
         #pylab.imshow(img, cmap=pylab.cm.gray, interpolation='nearest')
         #pylab.show()
 
-        # 5%のノイズを付与
-        corrupted = get_corrupted_input(img, 0.05)
+        # 10%のノイズを付与(10%くらいまでならノイズをそこそこ正確に除去できる)
+        corrupted = get_corrupted_input(img, 0.1)
 
         # ノイズ付き画像からマルコフ確率場を生成
         mrf = MRF(corrupted)
